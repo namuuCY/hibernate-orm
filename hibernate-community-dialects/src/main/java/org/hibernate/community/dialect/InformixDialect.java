@@ -40,6 +40,7 @@ import org.hibernate.exception.ConstraintViolationException;
 import org.hibernate.exception.LockAcquisitionException;
 import org.hibernate.exception.spi.SQLExceptionConversionDelegate;
 import org.hibernate.mapping.CheckConstraint;
+import org.hibernate.metamodel.mapping.SqlTypedMapping;
 import org.hibernate.query.sqm.CastType;
 import org.hibernate.query.sqm.IntervalType;
 import org.hibernate.query.sqm.function.SqmFunctionRegistry;
@@ -1096,6 +1097,18 @@ public class InformixDialect extends Dialect {
 						: "integer";
 		return "cast(null as " + castType + ")";
 	}
+
+	//	Add override for the newer signature to access columnDefinition
+	@Override
+	public String getSelectClauseNullString(SqlTypedMapping sqlType, TypeConfiguration typeConfiguration) {
+		final String castTypeName = sqlType.getColumnDefinition();
+		if ( castTypeName != null ) {
+			return "cast(null as " + castTypeName + ")";
+		}
+
+		return getSelectClauseNullString( sqlType.getJdbcMapping().getJdbcType().getDdlTypeCode(), typeConfiguration );
+	}
+
 
 	private static String castType(DdlType descriptor) {
 		final String typeName = descriptor.getTypeName( Size.length( Size.DEFAULT_LENGTH ) );

@@ -962,9 +962,18 @@ public class PostgreSQLLegacyDialect extends Dialect {
 
 	@Override
 	public String getSelectClauseNullString(SqlTypedMapping sqlType, TypeConfiguration typeConfiguration) {
-		final String castTypeName = typeConfiguration.getDdlTypeRegistry()
-				.getDescriptor( sqlType.getJdbcMapping().getJdbcType().getDdlTypeCode() )
-				.getCastTypeName( sqlType.toSize(), (SqlExpressible) sqlType.getJdbcMapping(), typeConfiguration.getDdlTypeRegistry() );
+		String castTypeName = sqlType.getColumnDefinition();
+
+		if ( castTypeName == null ) {
+			castTypeName = typeConfiguration.getDdlTypeRegistry()
+					.getDescriptor( sqlType.getJdbcMapping().getJdbcType().getDdlTypeCode() )
+					.getCastTypeName(
+							sqlType.toSize(),
+							(SqlExpressible) sqlType.getJdbcMapping(),
+							typeConfiguration.getDdlTypeRegistry()
+					);
+		}
+
 		return "cast(null as " + castTypeName + ")";
 	}
 
