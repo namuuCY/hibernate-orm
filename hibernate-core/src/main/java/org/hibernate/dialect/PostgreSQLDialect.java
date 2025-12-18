@@ -944,16 +944,16 @@ public class PostgreSQLDialect extends Dialect {
 
 	@Override
 	public String getSelectClauseNullString(SqlTypedMapping sqlType, TypeConfiguration typeConfiguration) {
-		String castTypeName = sqlType.getColumnDefinition();
+//		String castTypeName = sqlType.getColumnDefinition();
 
-		if ( castTypeName == null ) {
+//		if ( castTypeName == null ) {
 			final DdlTypeRegistry ddlTypeRegistry = typeConfiguration.getDdlTypeRegistry();
-			castTypeName = ddlTypeRegistry
+		String castTypeName = ddlTypeRegistry
 					.getDescriptor( sqlType.getJdbcMapping().getJdbcType().getDdlTypeCode() )
 					.getCastTypeName( sqlType.toSize(), (SqlExpressible) sqlType.getJdbcMapping(), ddlTypeRegistry );
 			// PostgreSQL assumes a plain null literal in the select statement to be of type text,
 			// which can lead to issues in e.g. the union subclass strategy, so do a cast
-		}
+//		}
 		return "cast(null as " + castTypeName + ")";
 	}
 

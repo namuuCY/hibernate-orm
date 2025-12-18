@@ -5,29 +5,24 @@
 package org.hibernate.dialect;
 
 
-import java.util.ArrayList;
 import java.util.List;
-
-import org.hibernate.cfg.AvailableSettings;
-import org.hibernate.resource.jdbc.spi.StatementInspector;
-
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.testing.jdbc.SQLStatementInspector;
 import org.hibernate.testing.orm.junit.DomainModel;
 import org.hibernate.testing.orm.junit.JiraKey;
 import org.hibernate.testing.orm.junit.RequiresDialect;
-import org.hibernate.testing.orm.junit.ServiceRegistry;
 import org.hibernate.testing.orm.junit.SessionFactory;
 import org.hibernate.testing.orm.junit.SessionFactoryScope;
-import org.hibernate.testing.orm.junit.Setting;
-import org.junit.jupiter.api.Assertions;
+import org.hibernate.type.SqlTypes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RequiresDialect(PostgreSQLDialect.class)
 @DomainModel(annotatedClasses = {
@@ -35,20 +30,11 @@ import jakarta.persistence.InheritanceType;
 		PostgreSQLDialectTest.InetEntity.class,
 		PostgreSQLDialectTest.EmptyEntity.class
 })
-@SessionFactory
-@ServiceRegistry(
-		settings = @Setting(
-				name = AvailableSettings.STATEMENT_INSPECTOR,
-				value = "org.hibernate.dialect.PostgreSQLDialectTest$SqlSpy"
-		)
-)
+@SessionFactory(useCollectingStatementInspector = true)
 public class PostgreSQLDialectTest {
-
-	public static final List<String> SQL_LOG = new ArrayList<>();
 
 	@BeforeEach
 	protected void setupTest(SessionFactoryScope scope) {
-		SQL_LOG.clear();
 		scope.inTransaction(
 				(session) -> {
 					session.createNativeQuery(
@@ -60,7 +46,6 @@ public class PostgreSQLDialectTest {
 					session.persist( new EmptyEntity() );
 				}
 		);
-		SQL_LOG.clear();
 	}
 
 	@Test
@@ -69,22 +54,16 @@ public class PostgreSQLDialectTest {
 		scope.inTransaction(
 				(session) -> {
 					String entityName = BaseEntity.class.getName();
-
 					List<BaseEntity> results = session.createQuery(
 							"select r from " + entityName + " r", BaseEntity.class
 					).list();
-
-					boolean foundCast = false;
-					for ( String sql : SQL_LOG ) {
-						if ( sql.contains( "cast(null as inet)" ) ) {
-							foundCast = true;
-							break;
-						}
-					}
-
-					Assertions.assertTrue( foundCast, "must contains 'cast(null as inet)' clause." );
 				}
 		);
+
+		SQLStatementInspector inspector = scope.getCollectingStatementInspector();
+		assertThat( inspector.getSqlQueries() )
+				.as("must contains 'cast(null as inet)' clause." )
+				.anyMatch(sql -> sql.toLowerCase().contains("cast(null as inet)"));
 	}
 
 
@@ -99,7 +78,7 @@ public class PostgreSQLDialectTest {
 	@Entity(name = "inet_entity")
 	public static class InetEntity extends BaseEntity {
 
-		@Column(columnDefinition = "inet")
+		@JdbcTypeCode(SqlTypes.INET)
 		private String ipAddress;
 
 		public InetEntity() {
@@ -110,12 +89,5 @@ public class PostgreSQLDialectTest {
 	public static class EmptyEntity extends BaseEntity {
 	}
 
-	public static class SqlSpy implements StatementInspector {
-		@Override
-		public String inspect(String sql) {
-			SQL_LOG.add( sql.toLowerCase() );
-			return sql;
-		}
-	}
 
 }
